@@ -1,0 +1,79 @@
+# Step 1 – Install Docker CE
+
+apt update -y
+apt install ca-certificates curl gnupg lsb-release -y
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu   $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+apt update -y
+apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
+
+systemctl status docker
+Output:
+
+ docker.service - Docker Application Container Engine
+     Loaded: loaded (/lib/systemd/system/docker.service; enabled; vendor preset: enabled)
+     Active: active (running) since Fri 2024-02-09 07:48:16 UTC; 1h 4min ago
+TriggeredBy: ● docker.socket
+ ...
+
+# Step 2 – Install Harbor
+
+curl -s https://api.github.com/repos/goharbor/harbor/releases/latest | grep browser_download_url | cut -d '"' -f 4 | grep '\.tgz$' | wget -i -
+tar -xzvf harbor-online-installer-v2.10.0.tgz                          # move the extracted directory to the /opt directory.
+
+mv harbor /opt/
+
+
+cd /opt/harbor
+cp harbor.yml.tmpl harbor.yml              # Next, edit the Harbor configuration file.
+
+nano harbor.yml                            # Change the following lines:
+
+hostname: reg.example.com
+harbor_admin_password: Harbor12345
+
+                   #### Remove the following lines:
+https:
+  # https port for harbor, default is 443
+  port: 443
+  # The path of cert and key files for nginx
+  certificate: /your/certificate/path
+  private_key: /your/private/key/path
+                            
+
+# run the following command to install the Harbor:
+ ./install.sh
+
+ starting Harbor ...
+[+] Running 9/10
+ ⠧ Network harbor_harbor        Created                                                                                                                            1.8s 
+ ✔ Container harbor-log         Started                                                                                                                            0.4s 
+ ✔ Container harbor-db          Started                                                                                                                            0.9s 
+ ✔ Container harbor-portal      Started                                                                                                                            0.8s 
+ ✔ Container redis              Started                                                                                                                            1.0s 
+ ✔ Container registry           Started                                                                                                                            0.7s 
+ ✔ Container registryctl        Started                                                                                                                            1.0s 
+ ✔ Container harbor-core        Started                                                                                                                            1.2s 
+ ✔ Container nginx              Started                                                                                                                            1.6s 
+ ✔ Container harbor-jobservice  Started                                                                                                                            1.6s 
+✔ ----Harbor has been installed and started successfully.----
+
+
+docker compose ps
+Output:
+
+NAME                IMAGE                                 COMMAND                  SERVICE       CREATED          STATUS                             PORTS
+harbor-core         goharbor/harbor-core:v2.10.0          "/harbor/entrypoint.…"   core          13 seconds ago   Up 12 seconds (health: starting)   
+harbor-db           goharbor/harbor-db:v2.10.0            "/docker-entrypoint.…"   postgresql    13 seconds ago   Up 12 seconds (health: starting)   
+harbor-jobservice   goharbor/harbor-jobservice:v2.10.0    "/harbor/entrypoint.…"   jobservice    13 seconds ago   Up 11 seconds (health: starting)   
+harbor-log          goharbor/harbor-log:v2.10.0           "/bin/sh -c /usr/loc…"   log           13 seconds ago   Up 13 seconds (health: starting)   127.0.0.1:1514->10514/tcp
+harbor-portal       goharbor/harbor-portal:v2.10.0        "nginx -g 'daemon of…"   portal        13 seconds ago   Up 12 seconds (health: starting)   
+nginx               goharbor/nginx-photon:v2.10.0         "nginx -g 'daemon of…"   proxy         13 seconds ago   Up 11 seconds (health: starting)   0.0.0.0:80->8080/tcp, :::80->8080/tcp
+redis               goharbor/redis-photon:v2.10.0         "redis-server /etc/r…"   redis         13 seconds ago   Up 12 seconds (health: starting)   
+registry            goharbor/registry-photon:v2.10.0      "/home/harbor/entryp…"   registry      13 seconds ago   Up 12 seconds (health: starting)   
+registryctl         goharbor/harbor-registryctl:v2.10.0   "/home/harbor/start.…"   registryctl   13 seconds ago   Up 12 seconds (health: starting) 
+
+
+# Step 3 – Access Harbor Web UI
+#access it using the URL http://reg.example.com
